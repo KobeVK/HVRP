@@ -1,0 +1,3 @@
+[submodule "tutorials/Kobi"]
+	path = tutorials/Kobi
+	url = https://github.com/KobeVK/max-cut.git
