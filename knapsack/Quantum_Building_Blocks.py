@@ -1,5 +1,6 @@
 from common import *
 from qiskit import *
+from qiskit import Aer
 import numpy as np
 from qiskit_optimization.translators import from_docplex_mp
 from docplex.mp.model import Model
@@ -11,6 +12,9 @@ from qiskit.algorithms.optimizers import SPSA , COBYLA
 from qiskit.algorithms.minimum_eigensolvers import SamplingVQE
 from qiskit.circuit.library import RealAmplitudes
 from qiskit_optimization.algorithms import MinimumEigenOptimizer
+from qiskit.utils import algorithm_globals, QuantumInstance
+from ibm_quantum_widgets import CircuitComposer
+from qiskit import QuantumRegister, ClassicalRegister, QuantumCircuit
 
 def knapsack_solver_quantum(file_path, max_weight):
     logger = logging.getLogger(__name__)
@@ -43,8 +47,10 @@ def knapsack_solver_quantum(file_path, max_weight):
 
     # Solve and optimize using minimum eigen solver
     algorithm_globals.random_seed = 1234
+    seed = 10598
     vqe = SamplingVQE(sampler=Sampler(), optimizer=SPSA(), ansatz=RealAmplitudes())
     optimizer = MinimumEigenOptimizer(min_eigen_solver=vqe)
+    optimizer.min_eigen_solver.ansatz
     result = optimizer.solve(op)
 
     result_str = str(result)
@@ -68,7 +74,14 @@ def knapsack_solver_quantum(file_path, max_weight):
     print(f"And according to the data provided, we can put {len(selected_objects)} objects inside it")
     print(f"With a total value of {total_value}")
     print(f"And a total weight of {total_weight}")
+    
+    # backend = Aer.get_backend('aer_simulator_statevector')
+    # quantum_instance = QuantumInstance(backend, seed_simulator=seed, seed_transpiler=seed)
+    # optimal_qc = vqe.get_optimal_circuit()
+    # editor = CircuitComposer(circuit=optimal_qc)
+    # editor
+    
 
-data_file = 'data/tiny_data'
-max_knapsack_weight = 25
-knapsack_solver_quantum(data_file, max_knapsack_weight)
+# data_file = 'data/tiny_data'
+# max_knapsack_weight = 25
+# knapsack_solver_quantum(data_file, max_knapsack_weight)
