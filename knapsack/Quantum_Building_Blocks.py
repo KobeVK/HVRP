@@ -1,64 +1,74 @@
 from common import *
-from qiskit import * 
-from qiskit_optimization import QuadraticProgram
+from qiskit import *
+import numpy as np
 from qiskit_optimization.translators import from_docplex_mp
 from docplex.mp.model import Model
+import logging
+import math
+from qiskit.primitives import Sampler
+from qiskit.utils import algorithm_globals
+from qiskit.algorithms.optimizers import SPSA , COBYLA
+from qiskit.algorithms.minimum_eigensolvers import SamplingVQE
+from qiskit.circuit.library import RealAmplitudes
+from qiskit_optimization.algorithms import MinimumEigenOptimizer
 
-# import numpy as np
-# from qiskit_optimization.algorithms import OptimizationResult
-# from qiskit_optimization.problems.quadratic_program import QuadraticProgram
-# from .optimization_application import OptimizationApplication
+def knapsack_solver_quantum(file_path, max_weight):
+    logger = logging.getLogger(__name__)
 
+    # Importing data
+    values, weights = parse_data(file_path)
 
-file_path = 'small_data'
-values, weights = parse_data(file_path)
+    N = len(values)  # Number of objects
+    if N != len(weights):
+        raise ValueError("The values and weights must have the same length")
+    if any(v < 0 for v in values) or any(w < 0 for w in weights):
+        raise ValueError("The values and weights cannot be negative")
+    if all(v == 0 for v in values):
+        raise ValueError("The values cannot all be 0")
 
-#emphasis on which Ha or Hb
-#A = 40 (for small data)
-#B =  
+    if max_weight < 0:
+        raise ValueError("max_weight cannot be negative")
 
-N = len(weights) + 1  # number of objects
-W = 10 # max weight
+    # Create a model
+    mdl = Model(name="Knapsack")
+    A = 10 * np.sum(values)
+    x = {i: mdl.binary_var(name=f"x_{i}") for i in range(N)}
 
-mdl = Model('docplex model')
+    mdl = Model(name="Knapsack")
+    x = {i: mdl.binary_var(name=f"x_{i}") for i in range(N)}
+    mdl.maximize(mdl.sum(values[i] * x[i] for i in x))
+    mdl.add_constraint(mdl.sum(weights[i] * x[i] for i in x) <= max_weight)
+    op = from_docplex_mp(mdl)
+    #print(op.export_as_lp_string())
 
-z = {}  # Dictionary to store binary variables z
-for i in range(1, W+1):
-    z[i] = mdl.binary_var('z{}'.format(i))
+    # Solve and optimize using minimum eigen solver
+    algorithm_globals.random_seed = 1234
+    vqe = SamplingVQE(sampler=Sampler(), optimizer=SPSA(), ansatz=RealAmplitudes())
+    optimizer = MinimumEigenOptimizer(min_eigen_solver=vqe)
+    result = optimizer.solve(op)
 
-x = {}  # Dictionary to store binary variables x
-for i in range(N):
-    x[i] = mdl.binary_var('x{}'.format(i))
+    result_str = str(result)
+    result_parts = result_str.split(', ')
+    x_values = [part for part in result_parts if 'x_' in part]
+    
+    selected_objects = []
+    total_value = 0
+    total_weight = 0
+    print("Your knapsack will contain:")
+    for x in x_values:
+        index, is_selected = x.split('=')
+        index = int(index.split('_')[1])
+        if float(is_selected) == 1.0:
+            print(f"Object: {index} - Value: {values[index]} - Weight: {weights[index]}")
+            selected_objects.append(index)
+            total_value += values[index]
+            total_weight += weights[index]
 
-L = 0  
-for i in range(1, W+1):
-    L -= 2 * z[i]
+    print(f"The maximum weight the knapsack can have is: {max_weight}")
+    print(f"And according to the data provided, we can put {len(selected_objects)} objects inside it")
+    print(f"With a total value of {total_value}")
+    print(f"And a total weight of {total_weight}")
 
-Q = 0
-for i in range(1, W+1):
-    for j in range(1, W+1):
-        Q += z[i] * z[j]
-
-for i in range(1, W+1):
-    for j in range(1, W+1):
-        Q += i * j * z[i] * z[j]
-
-for i in range(1, W+1):
-    for j in range(1, N+1):
-        Q += -2 * (i * z[i]) * (weights[j] * x[j])
-
-for i in range(1, N+1):
-    for j in range(1, N+1):
-        Q += (weights[i]* x[i]) * (weights[j] * x[j])
-
-Hb=0
-for i in range(1, N):
-    Hb -= (values[i]*x[i])
-
-#Ha+Hb
-mdl.minimize(Hb+L+Q)
-mod = QuadraticProgram()
-op = from_docplex_mp(mdl)
-print(mod.export_as_lp_string())
-
-
+data_file = 'data/tiny_data'
+max_knapsack_weight = 25
+knapsack_solver_quantum(data_file, max_knapsack_weight)

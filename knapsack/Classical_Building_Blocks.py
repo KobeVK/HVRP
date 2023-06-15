@@ -1,19 +1,46 @@
 from common import *
 
+def knapsack_solver_classical(file_path, W):
+    # Import knapsack values and weights
+    values, weights = parse_data(file_path)
+    N = len(weights)  # number of objects
 
-#importing knapsack values and weights
-file_path = 'small_data'
-values, weights = parse_data(file_path)
+    def knapsack_classic(W, wt, v, N):
+        K = [[0 for x in range(W + 1)] for x in range(N + 1)]
+ 
+        # Build the K[][] table bottom-up
+        for j in range(N + 1):
+            for w in range(W + 1):
+                if j == 0 or w == 0:
+                    K[j][w] = 0
+                elif wt[j-1] <= w:
+                    K[j][w] = max(v[j-1] + K[j-1][w-wt[j-1]], K[j-1][w])
+                else:
+                    K[j][w] = K[j-1][w]
+        return K[N][W], K
 
-# Setting up capacity
-capacity_truck1 = 100
-capacity_truck2 = 20
+    solution, K = knapsack_classic(W, weights, values, N)
+    total_value = solution
+    max_weigth = W
 
-# Set capacities using the set_truck_capacity function
-set_truck_capacity(truck1, capacity_truck1)
-set_truck_capacity(truck2, capacity_truck2)
+    chosen_objects = []
+    chosen_values = []
+    chosen_weights = []
+    j = N
+    w = W
+    while j > 0 and w > 0:
+        if K[j][w] != K[j-1][w]:
+            chosen_objects.append(j)
+            chosen_values.append(values[j-1])
+            chosen_weights.append(weights[j-1])
+            w -= weights[j-1]
+        j -= 1
+    chosen_objects.reverse()
+    chosen_values.reverse()
+    chosen_weights.reverse()
+    chosen_weights_sum = sum(chosen_weights)
+    
+    #total_objects = len(chosen_objects)
+    total_objects = 1
 
-print(truck1['capacity'])
-
-###################################################################################################
-
+    return chosen_objects, chosen_values, chosen_weights, max_weigth, total_objects, total_value, chosen_weights_sum
